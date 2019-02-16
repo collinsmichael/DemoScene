@@ -1,13 +1,15 @@
 
  ; *********************************************************************** ;
- ; You are free to use this framework for non commercial uses so long as   ;
+ ; You are free to use the framework for non commercial uses so long as    ;
  ; you publish any refinements you make and give me a greet                ;
- ; *********************************************************************** ;
- ; Greetz to HellMood, Rrrola, Sensentahl, Pirx, Las,                      ;
- ; Mind, Ferris, CngSoft and Baudsurfer                                    ;
+ ;    https://github.com/collinsmichael/DemoScene                          ;
+ ;                                                                         ;
+ ; Thanks to                                                               ;
+ ;   Las for the WindowClass trick (unblocked my header packing)           ;
+ ;   Rrrola for the camera trick                                           ;
+ ;   Hellmood for the raymarching ideas                                    ;
  ;                                                                         ;
  ; Special thanks to TomCat for picking up the ball and running with it    ;
- ;     http://www.pouet.net/prod.php?which=80077                           ;
  ; Now the balls in your court                                             ;
  ; *********************************************************************** ;
 
@@ -28,11 +30,6 @@
     call dword [proc]
  }
 
-
-                 ; ******************************************************* ;
-                 ; Entry Point is here. This entry point minimizes waste   ;
-                 ; and maximizes header field execution                    ;
-                 ; ******************************** ; ******************** ;
  MzHdr:          dec      ebp                       ; 4D                   ; .e_magic
                  pop      edx                       ; 5A                   ;
                  jmp      short BootStrap           ; EB 27                ; .e_cblp
