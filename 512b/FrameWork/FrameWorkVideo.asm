@@ -22,9 +22,6 @@
  PeekMessageA    equ ebx+2*(Gdi32-_PeekMessageA)
  GetDC           equ ebx+2*(Gdi32-_GetDC)
 
-                 ; **************************************************** ;
-                 ; Mostly hashes (3 bytes still free for use @1A + @1B) ;
-                 ; **************************************************** ;
  MzHdr:           dw 0x5A4D
                   dw 0x27EB
                   dw 0x4550
@@ -116,9 +113,7 @@
                  pop      ecx                      ; 59
                  push     esi                      ; 56
                  mov      esi, edi                 ; 89 FE
- FindFunction:  ;mov      eax, [esi]               ; 8B 06
-                ;inc      esi                      ; 46
-                 lodsw                             ; 66 AD
+ FindFunction:   lodsw                             ; 66 AD
                  pusha                             ; 60
                  mov      eax, [ebp+0x3C]          ; 8B 45 3C
                  mov      edi, [ebp+eax+0x78]      ; 8B 7C 05 78
