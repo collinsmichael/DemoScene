@@ -11,25 +11,37 @@
  use32
 
  ImageBase       equ $$
- NumHashes       equ Gdi32-$$
- StretchDIBits   equ ebx+0x20
- PeekMessageA    equ ebx+0x28
- ExitProcess     equ ebx+0x30
- GetWindowRect   equ ebx+0x38
- GetTickCount    equ ebx+0x3C
- LoadLibraryA    equ ebx+0x44
- CreateWindowExA equ ebx+0x48
- GetDC           equ ebx+0x64
+ NumHashes       equ (Gdi32-$$)/2
+
+ LoadLibraryA    equ ebx+2*(Gdi32-_LoadLibraryA)
+ CreateWindowExA equ ebx+2*(Gdi32-_CreateWindowExA)
+ GetWindowRect   equ ebx+2*(Gdi32-_GetWindowRect)
+ StretchDIBits   equ ebx+2*(Gdi32-_StretchDIBits)
+ GetTickCount    equ ebx+2*(Gdi32-_GetTickCount)
+ ExitProcess     equ ebx+2*(Gdi32-_ExitProcess)
+ PeekMessageA    equ ebx+2*(Gdi32-_PeekMessageA)
+ GetDC           equ ebx+2*(Gdi32-_GetDC)
 
                  ; **************************************************** ;
                  ; Mostly hashes (3 bytes still free for use @1A + @1B) ;
                  ; **************************************************** ;
- MzHdr:          db 0x4D,0x5A,0xEB,0x27,0x50,0x45,0x00,0x00
-                 db 0x4C,0x01,0x00,0x00,0x62,0x65,0x68,0xC5
-                 db 0x5A,0x08,0xE1,0xF2,0x3E,0xD1,0x00,0xD4
-                 db 0x00,0x00,0x02,0x00,0x0B,0x01
- Gdi32           db 'gdi32',0
- User32          db 'user32',0
+ MzHdr:           dw 0x5A4D
+                  dw 0x27EB
+                  dw 0x4550
+                  dw 0x0000
+ _GetWindowRect   dw 0x014C
+                  dw 0x0000
+ _CreateWindowExA dw 0x5226
+ _LoadLibraryA    dw 0x7D7B
+ _GetDC           dw 0x4F3B
+ _GetTickCount    dw 0xB4F9
+ _ExitProcess     dw 0x2FD7
+ _StretchDIBits   dw 0x6B7E
+                  dw 0x0000
+ _PeekMessageA    dw 0x03B2
+                  dw 0x010B
+ Gdi32            db 'gdi32',0
+ User32           db 'user32',0
 
                  ; ******************************************************* ;
                  ; Get Kernel32 ImageBase. Uses PEB method                 ;
@@ -104,8 +116,9 @@
                  pop      ecx                      ; 59
                  push     esi                      ; 56
                  mov      esi, edi                 ; 89 FE
- FindFunction:   mov      eax, [esi]               ; 8B 06
-                 inc      esi                      ; 46
+ FindFunction:  ;mov      eax, [esi]               ; 8B 06
+                ;inc      esi                      ; 46
+                 lodsw                             ; 66 AD
                  pusha                             ; 60
                  mov      eax, [ebp+0x3C]          ; 8B 45 3C
                  mov      edi, [ebp+eax+0x78]      ; 8B 7C 05 78
@@ -119,8 +132,8 @@
                  add      esi, ebp                 ; 01 EE
                  xor      edx, edx                 ; 31 D2
  Hash:           lodsb                             ; AC
-                 imul     edx, 0x2F                ; 6B D2 2F
-                 sub      edx, 0x37                ; 83 EA 37
+                 add      edx, 0x5D                ; 83 C2 5D
+                 imul     edx, 0x6D                ; 6B D2 6D
                  sub      edx, eax                 ; 29 C2
                  test     al, al                   ; 84 C0
                  jnz      Hash                     ; 75 F3
@@ -197,3 +210,4 @@
  ; *********************************************************************** ;
  ; v1.0   2019/02/16   303b   Initial implementation
  ; v1.1   2019/03/02   295b   Overlapping 16-bit hashes + Removed ShowCursor
+ ; v1.2   2019/03/03   294b   Non-Overlapping 16-bit hashes
