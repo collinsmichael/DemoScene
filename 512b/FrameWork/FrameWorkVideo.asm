@@ -42,35 +42,34 @@
 
                  ; ******************************************************* ;
                  ; Get Kernel32 ImageBase. Uses PEB method                 ;
-                 ; includes insane data execution (eax = ImageBase)        ;
                  ; ******************************************************* ;
- BootStrap:      mov      edx, 0x00000000    ; BA 00 00 00 00 ; .SizeUninitializedData & EntryPoint
-                 mov      edi, [fs:edx+0x30] ; 64 8B 7A 30    ; .BaseOfCode
-                 mov      edi, [edi+0x0C]    ; 8B 7F 0C       ; .BaseOfData
-                 mov      eax, $$            ; B8 00 00 01 00 ; .BaseOfData & ImageBase
-                 add      al, 0x00           ; 04 00          ; .SectionAlignment
+ BootStrap:      mov      edx, 0x00000000    ; BA 00 00 00 00 ;
+                 mov      edi, [ebx+0x0C]    ; 8B 7B 0C       ;
+                 mov      edi, [edi+0x1C]    ; 8B 7F 1C       ;
+                 push     esp                ; 54             ;
+                 mov      eax, $$            ; B8 00 00 01 00 ;
+                 add      al, 0x00           ; 04 00          ;
                  add      byte [ds:eax], al  ; 00 00          ;
-                 add      al, 0x00           ; 04 00          ; .FileAlignment
+                 add      al, 0x00           ; 04 00          ;
                  add      byte [ds:eax], al  ; 00 00          ;
-                 push     SizeStackClear     ; 6A 20          ; .MajorOsVersion
-                 mov      edi, [edi+0x1C]    ; 8B 7F 1C       ; .MinorOsVersion & .MajorImageVersion
- base:           mov      esi, [edi+0x20]    ; 8B 77 20       ; .MajorImageVersion & MinorImageVersion
-                 add      al, 0x00           ; 04 00          ; .MajorSubsystemVersion
-                 mov      ebp, [edi+0x08]    ; 8B 6F 08       ; .MinorSubsystemVersion & .Win32Version
-                 cmp      [esi+0x18], al     ; 38 46 18       ; .Win32VersionValue
-                 push     esp                ; 54             ; .SizeOfImage
+ base:           mov      esi, [edi+0x20]    ; 8B 77 20       ;
+                 mov      ebp, [edi+0x08]    ; 8B 6F 08       ;
                  mov      edi, [edi]         ; 8B 3F          ;
+                 add      al, 0x00           ; 04 00          ;
+                 cmp      [esi+0x18], al     ; 38 46 18       ;
+                 jnz      base               ; 75 EF          ;
                  pop      ebx                ; 5B             ;
-                 jnz      base               ; 75 EF          ; .SizeOfHeaders
+                 push     SizeStackClear     ; 6A 20          ;
+                 pop      ecx                ; 59             ;
+                 push     edx                ; 52             ;
+                 loop     $-1                ; E2 FD          ;
                  jmp      DataDirectory      ; EB 20          ;
 
                  ; ******************************************************* ;
                  ; Run Lengh Encode Stack Args                             ;
-                 ; No need to push API args, just decompress to the stack  ;
-                 ; Includes BITMAPINFO but requires stack pointer fixup    ;
                  ; ******************************************************* ;
- PackedStack:    db       0x60, 0x28  ; 60 28       ; .CheckSum            ; BitMapInfo.biSize (0x00000028)
-                 db       0x6E, 0x20  ; 6E 20       ;                      ; BitMapInfo.biBitsPerPel (0x0020)
+ PackedStack:    db       0x6E, 0x20  ; 6E 20       ;                      ; BitMapInfo.biBitsPerPel (0x0020)
+                 db       0x60, 0x28  ; 60 28       ; .CheckSum            ; BitMapInfo.biSize (0x00000028)
                  dw       0x0003      ; 03 00       ; .Subsystem           ;
                  db       0x4C, 0xC0  ; 4C C0       ; .DllCharacteristics  ; StretchDIBits.DestHeight (0x000000C0)
                  db       0x05, 0xC0  ; 05 C0       ; .SizeOfStackReserve  ; CreateWindexExA.szClass (Thanks Las)
@@ -94,9 +93,6 @@
                  ; Any suggestions for improvement?                        ;
                  ; ******************************************************* ;
  DataDirectory:  xchg     eax, edi                 ; 97
-                 pop      ecx                      ; 59
-                 push     edx                      ; 52
-                 loop     $-1                      ; E2 FD
                  mov      cl, NumStackValues       ; B1 10
  UnPack:         mov      eax, [PtrStack+ecx*0x02] ; 8B 44 4F 5A
                  mov      dl, al                   ; 88 C2
@@ -106,7 +102,7 @@
                  ; ******************************************************* ;
                  ; Import By Hash                                          ;
                  ; This allows for 16-bit hashes that can be overlapped    ;
-                 ;     hash = hash*0x2F - 0x37 - *str++                    ;
+                 ;     hash = (hash+X)*Y - *str++                          ;
                  ; ******************************************************* ;
                  lea      esi, [edi+User32-$$]     ; 8D 77 24
  GetHashes:      push     NumHashes                ; 6A 1E
@@ -125,7 +121,7 @@
                  add      esi, ebp                 ; 01 EE
                  mov      esi, [esi+ecx*0x04]      ; 8B 34 8E
                  add      esi, ebp                 ; 01 EE
-                 xor      edx, edx                 ; 31 D2
+                 cdq                               ; 99
  Hash:           lodsb                             ; AC
                  add      edx, 0x5D                ; 83 C2 5D
                  imul     edx, 0x6D                ; 6B D2 6D
@@ -136,7 +132,7 @@
                  jnz      ReDo                     ; 75 DD
                  mov      edx, [edi+0x24]          ; 8B 57 24
                  add      edx, ebp                 ; 01 EA
-                 movzx    ecx, word [edx+ecx*0x02] ; 0F B7 0C 4A
+                 mov      cl, [edx+ecx*0x02]       ; 8A 0C 4A
                  mov      edx, [edi+0x1C]          ; 8B 57 1C
                  add      edx, ebp                 ; 01 EA
                  add      ebp, [edx+ecx*0x04]      ; 03 2C 8A
@@ -154,6 +150,7 @@
                  ; EBX = ApiContext                                        ;
                  ; EDI = ImageBase                                         ;
                  ; ******************************************************* ;
+
  mainCRTStartup: call     dword [CreateWindowExA] ; FF 53 48
                  mov      edx, esp                ; 89 E2
                  push     eax                     ; 50
@@ -206,3 +203,4 @@
  ; v1.0   2019/02/16   303b   Initial implementation
  ; v1.1   2019/03/02   295b   Overlapping 16-bit hashes + Removed ShowCursor
  ; v1.2   2019/03/03   294b   Non-Overlapping 16-bit hashes
+ ; v1.3   2019/08/17   288b   Integrated TomCat's work from hole512b
